@@ -37,7 +37,11 @@ class SiFT_LOGIN:
 
 
     # parses a login request into a dictionary
-    def parse_login_req(self, login_req):
+    ### there will be 4 fields here, not two
+    ### time stamp will be an integer
+    ### when parsing login request and populating structure, you should do conversion 
+        ##random number -> hex string
+    def parse_login_req(self, login_req): 
 
         login_req_fields = login_req.decode(self.coding).split(self.delimiter)
         login_req_struct = {}
@@ -70,6 +74,7 @@ class SiFT_LOGIN:
 
 
     # handles login process (to be used by the server)
+    ### these two functions below have to be extended
     def handle_login_server(self):
 
         if not self.server_users:
