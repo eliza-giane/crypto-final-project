@@ -34,12 +34,20 @@ class SiFT_MTP:
 						  self.type_upload_req_0, self.type_upload_req_1, self.type_upload_res,
 						  self.type_dnload_req, self.type_dnload_res_0, self.type_dnload_res_1)
 		# --------- STATE ------------
-		self.peer_socket = peer_socket
+		self.peer_socket = peer_socket 
+		#L: at the beginning there is no key, recommended to set a static key (transferkey= smth that is 32 bytes) 
+		# self.send_sqn=0
+		# self.rcv_sqn = 0
+		# self.transfer_key = None
 
+
+	#L: def set_transfer_key(self, key):
+		# self.transfer_key = key
 
 	# parses a message header and returns a dictionary containing the header fields
 	def parse_msg_header(self, msg_hdr):
 
+		#process this normally
 		parsed_msg_hdr, i = {}, 0
 		parsed_msg_hdr['ver'], i = msg_hdr[i:i+self.size_msg_hdr_ver], i+self.size_msg_hdr_ver 
 		parsed_msg_hdr['typ'], i = msg_hdr[i:i+self.size_msg_hdr_typ], i+self.size_msg_hdr_typ
@@ -49,7 +57,7 @@ class SiFT_MTP:
 
 	# receives n bytes from the peer socket
 	def receive_bytes(self, n):
-
+		#L: doesn't need to be changed
 		bytes_received = b''
 		bytes_count = 0
 		while bytes_count < n:
@@ -66,7 +74,7 @@ class SiFT_MTP:
 
 	# receives and parses message, returns msg_type and msg_payload
 	def receive_msg(self):
-
+		#
 		try:
 			msg_hdr = self.receive_bytes(self.size_msg_hdr)
 		except SiFT_MTP_Error as e:
@@ -104,7 +112,7 @@ class SiFT_MTP:
 
 		return parsed_msg_hdr['typ'], msg_body
 
-
+	#L: don't touch
 	# sends all bytes provided via the peer socket
 	def send_bytes(self, bytes_to_send):
 		try:
@@ -112,10 +120,14 @@ class SiFT_MTP:
 		except:
 			raise SiFT_MTP_Error('Unable to send via peer socket')
 
-
+	#L: create a smth for GCM by using a static key and don't forget to use cipher update funciton
 	# builds and sends message of a given type using the provided payload
 	def send_msg(self, msg_type, msg_payload):
 		
+		#L: 
+		# if not self.transfer_key:
+		# 	raise SIF_MTP_Error("Transfer key is not yet established")
+
 		# build message
 		msg_size = self.size_msg_hdr + len(msg_payload)
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
