@@ -1,6 +1,8 @@
 #python3
 
 import socket
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto import Random
 
 class SiFT_MTP_Error(Exception):
 
@@ -124,14 +126,22 @@ class SiFT_MTP:
 	# builds and sends message of a given type using the provided payload
 	def send_msg(self, msg_type, msg_payload):
 		
-		#L: 
-		# if not self.transfer_key:
-		# 	raise SIF_MTP_Error("Transfer key is not yet established")
+		### L: 
+		if not self.transfer_key:
+			raise SiFT_MTP_Error("Transfer key has not been established")
 
 		# build message
 		msg_size = self.size_msg_hdr + len(msg_payload)
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
 		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len
+
+		### us:
+		msg_hdr_sqn = (self.snd_sqn+1).to_bytes(self.size_msg_hdr_sqn, byteorder='big')
+		msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
+		nonce = msg_hdr_sqn + msg_hdr_rnd
+		cipher = AES.new(self.transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=msg_hdr_len)
+		cipher.update(msg_hdr)
+		msg_epd, msg_mac = cipher.encrypt_and_digest(msg_payload)
 
 		# DEBUG 
 		if self.DEBUG:
