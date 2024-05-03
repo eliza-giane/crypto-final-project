@@ -33,6 +33,7 @@ class SiFT_LOGIN:
 
         login_req_str = login_req_struct['username']
         login_req_str += self.delimiter + login_req_struct['password'] 
+        
         return login_req_str.encode(self.coding)
 
 
@@ -47,6 +48,11 @@ class SiFT_LOGIN:
         login_req_struct = {}
         login_req_struct['username'] = login_req_fields[0]
         login_req_struct['password'] = login_req_fields[1]
+
+        # us:
+        login_req_struct['temporarykey'] = login_req_fields[2]
+        login_req_struct['publickey'] = login_req_fields[3]
+        
         return login_req_struct
 
 
@@ -182,7 +188,7 @@ class SiFT_LOGIN:
         # processing login response
         login_res_struct = self.parse_login_res(msg_payload)
 
-        # checking request_hash receiveid in the login response
+        # checking request_hash receivied in the login response
         if login_res_struct['request_hash'] != request_hash:
             raise SiFT_LOGIN_Error('Verification of login response failed')
 
