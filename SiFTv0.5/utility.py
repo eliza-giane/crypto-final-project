@@ -48,8 +48,8 @@ def newline(s):
 # files
 # ----------------------------------
 
-pubkeyfile = 'SiFTv0.5/client'
-privkeyfile = 'SiFTv0.5/server'
+privkeyfile = 'SiFTv0.5/server/privkey'
+pubkeyfile = 'SiFTv0.5/client/pubkey'
 
 
 # -------------------
@@ -62,6 +62,7 @@ def kpg():
     save_keypair(keypair, privkeyfile)
     print('Done.')
 
+kpg()
 # ----------
 # encryption
 # ----------

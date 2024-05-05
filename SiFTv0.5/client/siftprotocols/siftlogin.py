@@ -4,6 +4,7 @@ import time
 from Crypto.Hash import SHA256
 from Crypto.Protocol.KDF import PBKDF2
 from siftprotocols.siftmtp import SiFT_MTP, SiFT_MTP_Error
+from Crypto import Random
 
 
 class SiFT_LOGIN_Error(Exception):
@@ -31,8 +32,11 @@ class SiFT_LOGIN:
     # builds a login request from a dictionary
     def build_login_req(self, login_req_struct):
 
-        login_req_str = login_req_struct['username']
+        
+        login_req_str = login_req_struct['timestamp']
+        login_req_str += login_req_struct['username']
         login_req_str += self.delimiter + login_req_struct['password'] 
+        login_req_str += self.delimiter + login_req_struct['temporarykey']
         
         return login_req_str.encode(self.coding)
 
@@ -46,12 +50,12 @@ class SiFT_LOGIN:
 
         login_req_fields = login_req.decode(self.coding).split(self.delimiter)
         login_req_struct = {}
-        login_req_struct['username'] = login_req_fields[0]
-        login_req_struct['password'] = login_req_fields[1]
+        login_req_struct['username'] = login_req_fields[1]
+        login_req_struct['password'] = login_req_fields[2]
 
         # us:
-        login_req_struct['temporarykey'] = login_req_fields[2]
-        login_req_struct['publickey'] = login_req_fields[3]
+        login_req_struct['temporarykey'] = login_req_fields[3]
+        login_req_struct['timestamp'] = login_req_fields[0]
         
         return login_req_struct
 
@@ -115,6 +119,11 @@ class SiFT_LOGIN:
                 raise SiFT_LOGIN_Error('Password verification failed')
         else:
             raise SiFT_LOGIN_Error('Unkown user attempted to log in')
+        
+        #E:
+        window = 200000
+        if login_req_struct['timestamp'] < (time.time_ns() - window):
+            raise SiFT_LOGIN_Error('Timestamp is too old')
 
         # building login response
         login_res_struct = {}
@@ -147,8 +156,10 @@ class SiFT_LOGIN:
 
         # building a login request
         login_req_struct = {}
+        login_req_struct['timestamp'] = Random.get_random_bytes(16).hex()
         login_req_struct['username'] = username
         login_req_struct['password'] = password
+        login_req_struct['temporarykey'] = str(time.time_ns())
         msg_payload = self.build_login_req(login_req_struct)
 
         # DEBUG 

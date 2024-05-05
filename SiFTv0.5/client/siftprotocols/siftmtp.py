@@ -44,7 +44,7 @@ class SiFT_MTP:
 
 
 	#L: def set_transfer_key(self, key):
-		# self.transfer_key = key
+		# self.transfer_key = key #random generated (in login)
 
 	# parses a message header and returns a dictionary containing the header fields
 	def parse_msg_header(self, msg_hdr):
