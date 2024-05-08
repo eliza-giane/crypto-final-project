@@ -36,7 +36,7 @@ class SiFT_LOGIN:
         login_req_str = login_req_struct['timestamp']
         login_req_str += login_req_struct['username']
         login_req_str += self.delimiter + login_req_struct['password'] 
-        login_req_str += self.delimiter + login_req_struct['temporarykey']
+        login_req_str += self.delimiter + login_req_struct['client_random']
         
         return login_req_str.encode(self.coding)
 
@@ -54,7 +54,7 @@ class SiFT_LOGIN:
         login_req_struct['password'] = login_req_fields[2]
 
         # us:
-        login_req_struct['temporarykey'] = login_req_fields[3]
+        login_req_struct['client_random'] = login_req_fields[3]
         login_req_struct['timestamp'] = login_req_fields[0]
         
         return login_req_struct
@@ -156,10 +156,10 @@ class SiFT_LOGIN:
 
         # building a login request
         login_req_struct = {}
-        login_req_struct['timestamp'] = Random.get_random_bytes(16).hex()
+        login_req_struct['timestamp'] = time.time_ns()
         login_req_struct['username'] = username
         login_req_struct['password'] = password
-        login_req_struct['temporarykey'] = str(time.time_ns())
+        login_req_struct['client_random'] = Random.get_random_bytes(16).hex()
         msg_payload = self.build_login_req(login_req_struct)
 
         # DEBUG 
