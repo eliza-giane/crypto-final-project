@@ -27,9 +27,9 @@ class SiFT_MTP:
 		self.size_msg_hdr_len = 2
 
 		#L:
-		# self.size_msg_hdr_sqn = 2
-		# self.size_msg_hdr_rnd = 6
-		# self.size_msg_hdr_rsv = 2
+		self.size_msg_hdr_sqn = 2
+		self.size_msg_hdr_rnd = 6
+		self.size_msg_hdr_rsv = 2
 
 		self.type_login_req =    b'\x00\x00'
 		self.type_login_res =    b'\x00\x10'
@@ -48,9 +48,9 @@ class SiFT_MTP:
 		# --------- STATE ------------
 		self.peer_socket = peer_socket 
 		#L: at the beginning there is no key, recommended to set a static key (transferkey= smth that is 32 bytes) 
-		# self.send_sqn = 0
-		# self.rcv_sqn = 0
-		# self.transfer_key = None
+		self.send_sqn = 0
+		self.rcv_sqn = 0
+		self.transfer_key = Random.get_random_bytes(32)
 
 	# L: 
 	def set_transfer_key(self, key):
@@ -63,13 +63,16 @@ class SiFT_MTP:
 		parsed_msg_hdr, i = {}, 0
 		parsed_msg_hdr['ver'], i = msg_hdr[i:i+self.size_msg_hdr_ver], i+self.size_msg_hdr_ver 
 		parsed_msg_hdr['typ'], i = msg_hdr[i:i+self.size_msg_hdr_typ], i+self.size_msg_hdr_typ
-		parsed_msg_hdr['len'] = msg_hdr[i:i+self.size_msg_hdr_len]
+		
+		#L: 
+		parsed_msg_hdr['len'] = msg_hdr[i:i+self.size_msg_hdr_len], i+self.size_msg_hdr_len
+		
+		parsed_msg_hdr['sqn'] = msg_hdr[i:i+self.size_msg_hdr_sqn], i+self.size_msg_hdr_sqn
+		parsed_msg_hdr['rnd'] =  msg_hdr[i:i+self.size_msg_hdr_rnd], i+self.size_msg_hdr_rnd
+		parsed_msg_hdr['rsv'] = msg_hdr[i:i+self.size_msg_hdr_rsv]
+		
 		return parsed_msg_hdr
 	
-		#L: 
-		# parsed_msg_hdr['sqn'] = msg_hdr[i:i+self.size_msg_hdr_sqn]
-		# parsed_msg_hdr['rnd'] = msg_hdr[i:i+self.size_msg_hdr_rnd]
-		# parsed_msg_hdr['rsv'] = msg_hdr[i:i+self.size_msg_hdr_rsv]
 
 
 	# receives n bytes from the peer socket
@@ -127,6 +130,22 @@ class SiFT_MTP:
 		if len(msg_body) != msg_len - self.size_msg_hdr: 
 			raise SiFT_MTP_Error('Incomplete message body reveived')
 
+		#L: check if the sequence number is correct 
+		if parsed_msg_hdr['sqn'] != self.send_sqn:
+			raise SiFT_MTP_Error("Sequence numbers do not match")
+		
+		#L:
+		etk = msg_body[::256] #takes last 256 bytes of message as etk
+		#decrypt this using RSA-OAEP w/ RSA private key to obtain temporary key tk
+   
+		# L: 
+        # decrypt encrypted, temporary with keypair using temporary key
+        # decrypt encrypted payload using temporary key:
+        #       - verify MAC
+        #       - verify user in 0.5
+        #       - save client random
+        #       - compute login request hash
+	
 		return parsed_msg_hdr['typ'], msg_body
 
 	#L: don't touch
@@ -151,7 +170,7 @@ class SiFT_MTP:
 		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len
 
 		### us:
-		msg_hdr_sqn = (self.snd_sqn+1).to_bytes(self.size_msg_hdr_sqn, byteorder='big')
+		msg_hdr_sqn = (self.snd_sqn+1).to_bytes(self.size_msg_hdr_sqn, byteorder='big') #increments the sequence
 		msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
 		nonce = msg_hdr_sqn + msg_hdr_rnd
 		cipher = AES.new(self.transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=msg_hdr_len)
