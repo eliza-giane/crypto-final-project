@@ -50,7 +50,7 @@ class SiFT_MTP:
 						  self.type_dnload_req, self.type_dnload_res_0, self.type_dnload_res_1)
 		# --------- STATE ------------
 		self.peer_socket = peer_socket 
-		self.send_sqn = 0
+		self.snd_sqn = 0
 		self.rcv_sqn = 0
 		self.transfer_key = None
 
