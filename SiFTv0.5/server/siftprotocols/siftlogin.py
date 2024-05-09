@@ -23,6 +23,8 @@ class SiFT_LOGIN:
         self.mtp = mtp
         self.server_users = None 
 
+        self.server_random = None
+
 
     # sets user passwords dictionary (to be used by the server)
     def set_server_users(self, users):
@@ -62,7 +64,8 @@ class SiFT_LOGIN:
     # builds a login response from a dictionary
     def build_login_res(self, login_res_struct):
 
-        login_res_str = login_res_struct['request_hash'].hex() 
+        login_res_str = login_res_struct['request_hash'].hex() + login_res_struct['server_random'].hex()
+
         return login_res_str.encode(self.coding)
 
 
@@ -71,6 +74,8 @@ class SiFT_LOGIN:
         login_res_fields = login_res.decode(self.coding).split(self.delimiter)
         login_res_struct = {}
         login_res_struct['request_hash'] = bytes.fromhex(login_res_fields[0])
+        login_res_struct['server_random'] = Random.get_random_bytes(16)
+
         return login_res_struct
 
 
@@ -161,7 +166,6 @@ class SiFT_LOGIN:
         login_req_struct['client_random'] = Random.get_random_bytes(16).hex()
         msg_payload = self.build_login_req(login_req_struct)
 
-        temp_key = Random.get_random_bytes(16).hex()
         ## TODO ##
         # encrypt the payload in AES GCM using a temporary key (16 bytes) (append it to the header)
         # append the MAC
