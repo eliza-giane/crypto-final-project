@@ -122,7 +122,7 @@ class SiFT_LOGIN:
         
         #E:
         window = 200000
-        if login_req_struct['timestamp'] < (time.time_ns() - window):
+        if int(login_req_struct['timestamp']) < (time.time_ns() - window):
             raise SiFT_LOGIN_Error('Timestamp is too old')
 
         # building login response
