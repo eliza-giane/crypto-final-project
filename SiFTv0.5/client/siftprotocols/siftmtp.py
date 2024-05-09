@@ -111,7 +111,8 @@ class SiFT_MTP:
 		# GETS MESSAGE LENGTH
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
 
-		if parsed_msg_hdr['seq'] < self.receive_sqn:
+		msg_sqn = int.from_bytes(parsed_msg_hdr['sqn'], byteorder="big")
+		if msg_sqn < self.rcv_sqn:
 			raise SiFT_MTP_Error('Old sequence number')
 
 		if parsed_msg_hdr['typ'] == self.type_login_res: 
@@ -212,12 +213,12 @@ class SiFT_MTP:
 				raise SiFT_MTP_Error("Transfer key has not been established")
 
 			# build message
-			msg_size = self.size_msg_hdr + len(msg_payload) + self.size_msg_mac + self.size_etk
+			msg_size = self.size_msg_hdr + len(msg_payload) + self.size_mac + self.size_etk
 			msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
 
 			### us:
 			msg_hdr_sqn = (self.snd_sqn).to_bytes(self.size_msg_hdr_sqn, byteorder='big') #increments the sequence
-			msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd, byteodrer='big') 
+			msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
 			msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_hdr_sqn + msg_hdr_rnd
 			nonce = msg_hdr_sqn + msg_hdr_rnd
 			cipher = AES.new(self.transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=self.size_mac)
@@ -260,12 +261,12 @@ class SiFT_MTP:
 				raise SiFT_MTP_Error("Transfer key has not been established")
 
 			# build message
-			msg_size = self.size_msg_hdr + len(msg_payload) + self.size_msg_mac
+			msg_size = self.size_msg_hdr + len(msg_payload) + self.size_mac
 			msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
 
 			### us:
 			msg_hdr_sqn = (self.snd_sqn).to_bytes(self.size_msg_hdr_sqn, byteorder='big') #increments the sequence
-			msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd, byteodrer='big')
+			msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
 			msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_hdr_sqn + msg_hdr_rnd
 			nonce = msg_hdr_sqn + msg_hdr_rnd
 			cipher = AES.new(self.transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=self.size_mac)
