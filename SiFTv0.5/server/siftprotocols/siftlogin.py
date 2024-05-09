@@ -31,10 +31,9 @@ class SiFT_LOGIN:
 
     # builds a login request from a dictionary
     def build_login_req(self, login_req_struct):
-
         
-        login_req_str = login_req_struct['timestamp']
-        login_req_str += login_req_struct['username']
+        login_req_str = str(login_req_struct['timestamp'])
+        login_req_str += self.delimiter + login_req_struct['username']
         login_req_str += self.delimiter + login_req_struct['password'] 
         login_req_str += self.delimiter + login_req_struct['client_random']
         
@@ -122,7 +121,7 @@ class SiFT_LOGIN:
         
         #E:
         window = 200000
-        if login_req_struct['timestamp'] < (time.time_ns() - window):
+        if int(login_req_struct['timestamp']) < (time.time_ns() - window):
             raise SiFT_LOGIN_Error('Timestamp is too old')
 
         # building login response

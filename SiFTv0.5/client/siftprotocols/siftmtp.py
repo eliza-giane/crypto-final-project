@@ -111,7 +111,10 @@ class SiFT_MTP:
 		# GETS MESSAGE LENGTH
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
 
-		if parsed_msg_hdr['typ'] == self.type_login_req: 
+		if parsed_msg_hdr['seq'] < self.receive_sqn:
+			raise SiFT_MTP_Error('Old sequence number')
+
+		if parsed_msg_hdr['typ'] == self.type_login_res: 
 			try:
 				#GETS MESSAGE BODY
 				msg_body = self.receive_bytes(msg_len - self.size_msg_hdr - self.size_mac - self.size_etk)
@@ -131,26 +134,27 @@ class SiFT_MTP:
 				print('BDY (' + str(len(msg_body)) + '): ')
 				print(msg_body.hex())
 				print('------------------------------------------')
-			# DEBUG 
+			# DEBUG  
 
 			if len(msg_body) != msg_len - self.size_msg_hdr - self.size_mac - self.size_etk: 
 				raise SiFT_MTP_Error('Incomplete message body received')
 			
-			msg_etk = self.receive_bytes(self.size_etk)
-			keypair = load_keypair("file")
-			RSAcipher = PKCS1_OAEP.new(keypair)
-			symkey = RSAcipher.decrypt(self.transfer_key)
+			try:
+				msg_etk = self.receive_bytes(self.size_etk)
+			except SiFT_MTP_Error as e:
+				raise SiFT_MTP_Error('Unable to receive message ETK --> ' + e.err_msg)
 
-			## TODO ##
-
-			#decrypt this using RSA-OAEP w/ RSA private key to obtain temporary key tk
-			# L: 
-			# decrypt encrypted, temporary with keypair using temporary key
-			# decrypt encrypted payload using temporary key:
-			#       - verify MAC
-			#       - verify user in 0.5
-			#       - save client random
-			#       - compute login request hash
+			pubkey = ''
+			pubkeyfile = './pubkey'
+			with open(pubkeyfile, 'rb') as f:
+				pubkeystr = f.read()
+			try:
+				pubkey = RSA.import_key(pubkeystr)
+			except ValueError:
+				print('Error: Cannot import public key from file ' + pubkeyfile)
+				sys.exit(1)
+			RSAcipher = PKCS1_OAEP.new(pubkey)
+			self.set_transfer_key(RSAcipher.decrypt(msg_etk)) 
 			
 		else:
 			try:
@@ -174,7 +178,7 @@ class SiFT_MTP:
 				print('------------------------------------------')
 			# DEBUG #
 			
-		msg_hdr_sqn = (self.snd_sqn).to_bytes(self.size_msg_hdr_sqn, byteorder='big')
+		msg_hdr_sqn = (self.rcv_sqn).to_bytes(self.size_msg_hdr_sqn, byteorder='big')
 		msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd, byteodrer='big')
 		nonce = msg_hdr_sqn + msg_hdr_rnd    # parsed_msg_hdr['sqn'] +  parsed_msg_hdr['rnd']
 		cipher = AES.new(self.transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=self.size_mac)
@@ -186,6 +190,8 @@ class SiFT_MTP:
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Error: Operation Failed!')
 	
+		self.rcv_sqn += 1
+
 		return parsed_msg_hdr['typ'], payload
 
 	# sends all bytes provided via the peer socket
@@ -197,11 +203,11 @@ class SiFT_MTP:
 
 	# builds and sends message of a given type using the provided payload
 	def send_msg(self, msg_type, msg_payload):
-		self.set_transfer_key(Random.get_random_bytes(32))
-		if msg_type == self.type_login_res: # includes etk portion
-			### L: 
 
-			#TODO:
+		self.set_transfer_key(Random.get_random_bytes(32)) #generates fresh 32 byte random temporary key
+		
+		if msg_type == self.type_login_req: # includes etk portion
+
 			if not self.transfer_key:
 				raise SiFT_MTP_Error("Transfer key has not been established")
 
@@ -210,7 +216,7 @@ class SiFT_MTP:
 			msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
 
 			### us:
-			msg_hdr_sqn = (self.snd_sqn+1).to_bytes(self.size_msg_hdr_sqn, byteorder='big') #increments the sequence
+			msg_hdr_sqn = (self.snd_sqn).to_bytes(self.size_msg_hdr_sqn, byteorder='big') #increments the sequence
 			msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd, byteodrer='big') 
 			msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_hdr_sqn + msg_hdr_rnd
 			nonce = msg_hdr_sqn + msg_hdr_rnd
@@ -218,11 +224,18 @@ class SiFT_MTP:
 			cipher.update(msg_hdr)
 			msg_epd, msg_mac = cipher.encrypt_and_digest(msg_payload)
 
-			## TODO ## deal with this later
-			# with open(pubkeyfile, 'rb') as f:
-        	# 	pubkeystr = f.read()
-			pubkey = load_publickey("pubkey")
+			pubkey = ''
+			pubkeyfile = './pubkey'
+
+			with open(pubkeyfile, 'rb') as f:
+				pubkeystr = f.read()
+			try:
+				pubkey = RSA.import_key(pubkeystr)
+			except ValueError:
+				print('Error: Cannot import public key from file ' + pubkeyfile)
+				sys.exit(1)
 			RSAcipher = PKCS1_OAEP.new(pubkey)
+
 			msg_etk = RSAcipher.encrypt(self.transfer_key) 
 
 			# DEBUG 
@@ -251,7 +264,7 @@ class SiFT_MTP:
 			msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
 
 			### us:
-			msg_hdr_sqn = (self.snd_sqn+1).to_bytes(self.size_msg_hdr_sqn, byteorder='big') #increments the sequence
+			msg_hdr_sqn = (self.snd_sqn).to_bytes(self.size_msg_hdr_sqn, byteorder='big') #increments the sequence
 			msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd, byteodrer='big')
 			msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_hdr_sqn + msg_hdr_rnd
 			nonce = msg_hdr_sqn + msg_hdr_rnd
@@ -276,5 +289,5 @@ class SiFT_MTP:
 			except SiFT_MTP_Error as e:
 				raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 			
-			# if message was sent successfully:
-			self.snd_sqn += 1 
+		# if message was sent successfully:
+		self.snd_sqn += 1 
