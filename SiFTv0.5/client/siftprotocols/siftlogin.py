@@ -31,10 +31,9 @@ class SiFT_LOGIN:
 
     # builds a login request from a dictionary
     def build_login_req(self, login_req_struct):
-
         
-        login_req_str = login_req_struct['timestamp']
-        login_req_str += login_req_struct['username']
+        login_req_str = str(login_req_struct['timestamp'])
+        login_req_str += self.delimiter + login_req_struct['username']
         login_req_str += self.delimiter + login_req_struct['password'] 
         login_req_str += self.delimiter + login_req_struct['client_random']
         
