@@ -73,7 +73,7 @@ class SiFT_MTP:
 		
 		return parsed_msg_hdr
 	
-
+	
 
 	# receives n bytes from the peer socket
 	def receive_bytes(self, n):
@@ -165,13 +165,14 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error("Transfer key has not been established")
 
 		# build message
-		msg_size = self.size_msg_hdr + len(msg_payload)
+		msg_size = self.size_msg_hdr + len(msg_payload) + self.size_
+		msg_mac
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
-		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len
 
 		### us:
 		msg_hdr_sqn = (self.snd_sqn+1).to_bytes(self.size_msg_hdr_sqn, byteorder='big') #increments the sequence
 		msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
+		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_hdr_sqn + msg_hdr_rnd
 		nonce = msg_hdr_sqn + msg_hdr_rnd
 		cipher = AES.new(self.transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=msg_hdr_len)
 		cipher.update(msg_hdr)
@@ -181,15 +182,19 @@ class SiFT_MTP:
 		if self.DEBUG:
 			print('MTP message to send (' + str(msg_size) + '):')
 			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('BDY (' + str(len(msg_payload)) + '): ')
-			print(msg_payload.hex())
+			print('EPD (' + str(len(msg_epd)) + '): ' + msg_epd.hex())
+			print('MAC (' + str(len(msg_mac)) + '): ' + msg_mac.hex())
+			# print('BDY (' + str(len(msg_payload)) + '): ')
+			# print(msg_payload.hex())
 			print('------------------------------------------')
 		# DEBUG 
 
 		# try to send
 		try:
-			self.send_bytes(msg_hdr + msg_payload)
+			self.send_bytes(msg_hdr + msg_epd + msg_mac)
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
+
+
 
 
