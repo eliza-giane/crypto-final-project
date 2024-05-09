@@ -50,12 +50,12 @@ class SiFT_LOGIN:
 
         login_req_fields = login_req.decode(self.coding).split(self.delimiter)
         login_req_struct = {}
-        login_req_struct['username'] = login_req_fields[1]
-        login_req_struct['password'] = login_req_fields[2]
 
         # us:
-        login_req_struct['client_random'] = login_req_fields[3]
         login_req_struct['timestamp'] = login_req_fields[0]
+        login_req_struct['username'] = login_req_fields[1]
+        login_req_struct['password'] = login_req_fields[2]
+        login_req_struct['client_random'] = login_req_fields[3]
         
         return login_req_struct
 
@@ -162,6 +162,12 @@ class SiFT_LOGIN:
         login_req_struct['client_random'] = Random.get_random_bytes(16).hex()
         msg_payload = self.build_login_req(login_req_struct)
 
+        temp_key = Random.get_random_bytes(16).hex()
+        ## TODO ##
+        # encrypt the payload in AES GCM using a temporary key (16 bytes) (append it to the header)
+        # append the MAC
+        # append the encrypted temporary key (encrypt with RSA 0AEP using the server's public key)
+
         # DEBUG 
         if self.DEBUG:
             print('Outgoing payload (' + str(len(msg_payload)) + '):')
@@ -199,7 +205,10 @@ class SiFT_LOGIN:
         # processing login response
         login_res_struct = self.parse_login_res(msg_payload)
 
-        # checking request_hash receivied in the login response
+        # checking request_hash received in the login response
         if login_res_struct['request_hash'] != request_hash:
             raise SiFT_LOGIN_Error('Verification of login response failed')
+        
+        ## TODO ##
+        # compute transfer key
 
