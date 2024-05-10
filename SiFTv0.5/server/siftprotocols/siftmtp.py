@@ -235,8 +235,8 @@ class SiFT_MTP:
 			except ValueError:
 				print('Error: Cannot import public key from file ' + pubkeyfile)
 				sys.exit(1)
+				
 			RSAcipher = PKCS1_OAEP.new(pubkey)
-
 			msg_etk = RSAcipher.encrypt(self.transfer_key) 
 
 			# DEBUG 
