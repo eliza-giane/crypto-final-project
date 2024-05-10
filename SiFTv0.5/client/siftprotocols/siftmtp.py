@@ -143,7 +143,9 @@ class SiFT_MTP:
 				raise SiFT_MTP_Error('Unable to receive message ETK --> ' + e.err_msg)
 
 			pubkey = ''
+			pivkey = ''
 			pubkeyfile = './pubkey'
+			pivkeyfile = './pivkey'
 			with open(pubkeyfile, 'rb') as f:
 				pubkeystr = f.read()
 			try:
@@ -151,7 +153,17 @@ class SiFT_MTP:
 			except ValueError:
 				print('Error: Cannot import public key from file ' + pubkeyfile)
 				sys.exit(1)
-			RSAcipher = PKCS1_OAEP.new(pubkey)
+			
+			with open(pivkeyfile, 'rb') as f:
+				pivkeystr = f.read()
+			try:
+				pivkey = RSA.import_key(pivkeystr)
+			except ValueError:
+				print('Error: Cannot import private key from file ' + pivkeyfile)
+				sys.exit(1)
+
+
+			RSAcipher = PKCS1_OAEP.new(pivkey)
 			self.set_transfer_key(RSAcipher.decrypt(msg_etk)) 
 
 			# DEBUG 
