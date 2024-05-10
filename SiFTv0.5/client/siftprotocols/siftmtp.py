@@ -121,7 +121,7 @@ class SiFT_MTP:
 		if msg_sqn < self.rcv_sqn:
 			raise SiFT_MTP_Error('Old sequence number')
 
-		if parsed_msg_hdr['typ'] == self.type_command_req: 
+		if parsed_msg_hdr['typ'] == self.type_login_req: 
 			print("\nRECEIVING A RESPONSE")
 
 			try:
