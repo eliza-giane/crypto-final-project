@@ -147,7 +147,7 @@ class SiFT_MTP:
 			pubkey = ''
 			pivkey = ''
 			pubkeyfile = './pubkey'
-			pivkeyfile = './pivkey'
+			pivkeyfile = './privkey'
 			with open(pubkeyfile, 'rb') as f:
 				pubkeystr = f.read()
 			try:
@@ -159,7 +159,7 @@ class SiFT_MTP:
 			with open(pivkeyfile, 'rb') as f:
 				pivkeystr = f.read()
 			try:
-				pivkey = RSA.import_key(pivkeystr)
+				pivkey = RSA.import_key(pivkeystr, passphrase='123')
 			except ValueError:
 				print('Error: Cannot import private key from file ' + pivkeyfile)
 				sys.exit(1)
@@ -203,10 +203,11 @@ class SiFT_MTP:
 		# self.set_transfer_key(RSAcipher.decrypt(msg_etk)) 
 		# print("\nNEW EDIT TRANSFER KEY: ", self.transfer_key)
 		msg_hdr_sqn = (self.rcv_sqn).to_bytes(self.size_msg_hdr_sqn, byteorder='big')
-		msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
+		msg_hdr_rnd = parsed_msg_hdr['rnd']
 		nonce = msg_hdr_sqn + msg_hdr_rnd    # parsed_msg_hdr['sqn'] +  parsed_msg_hdr['rnd']
 		print("Transfer key: ", self.transfer_key)
 		print("Message type: ", parsed_msg_hdr['typ'])
+		print("NONCE:", nonce)
 		cipher = AES.new(self.transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=self.size_mac)
 		cipher.update(msg_hdr)
 		
@@ -247,6 +248,7 @@ class SiFT_MTP:
 			msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
 			msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_hdr_sqn + msg_hdr_rnd + self.msg_hdr_rsv
 			nonce = msg_hdr_sqn + msg_hdr_rnd
+			print("NONCE:", nonce)
 			cipher = AES.new(self.transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=self.size_mac)
 			cipher.update(msg_hdr)
 			msg_epd, msg_mac = cipher.encrypt_and_digest(msg_payload)

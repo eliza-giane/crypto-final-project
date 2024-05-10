@@ -53,7 +53,7 @@ class SiFT_LOGIN:
         login_req_struct['timestamp'] = login_req_fields[0]
         login_req_struct['username'] = login_req_fields[1]
         login_req_struct['password'] = login_req_fields[2]
-        login_req_struct['client_random'] = login_req_fields[3]
+        login_req_struct['client_random'] = bytes.fromhex(login_req_fields[3])
         
         return login_req_struct
 
@@ -61,7 +61,7 @@ class SiFT_LOGIN:
     # builds a login response from a dictionary
     def build_login_res(self, login_res_struct):
 
-        login_res_str = login_res_struct['request_hash'].hex() + login_res_struct['server_random'].hex()
+        login_res_str = login_res_struct['request_hash'].hex() + '\n' + login_res_struct['server_random'].hex()
 
         return login_res_str.encode(self.coding)
 
@@ -124,8 +124,8 @@ class SiFT_LOGIN:
             raise SiFT_LOGIN_Error('Unkown user attempted to log in')
         
         #E:
-        window = 200000
-        if int(login_req_struct['timestamp']) < (time.time_ns() - window):
+        window = 1E9
+        if time.time_ns() - int(login_req_struct['timestamp']) > window and time.time_ns() - int(login_req_struct['timestamp']) > -1 * window:
             raise SiFT_LOGIN_Error('Timestamp is too old')
 
         # building login response
@@ -154,7 +154,7 @@ class SiFT_LOGIN:
 
         ## TODO ## computing the final transfer key to be passed onto MTP
         initKey = login_req_struct['client_random'] + login_res_struct['server_random']
-        finaltk = HKDF(initKey, key_len=32, salt=request_hash, hash_fn=SHA256, num_keys=1)
+        finaltk = HKDF(initKey, key_len=32, salt=request_hash, hashmod=SHA256, num_keys=1)
         self.mtp.set_transfer_key(finaltk)
 
         return login_req_struct['username']
@@ -216,6 +216,6 @@ class SiFT_LOGIN:
         
         ## TODO ## computing the final transfer key to be passed onto MTP
         initKey = login_req_struct['client_random'] + login_res_struct['server_random']
-        finaltk = HKDF(initKey, key_len=32, salt=request_hash, hash_fn=SHA256, num_keys=1)
+        finaltk = HKDF(initKey, key_len=32, salt=request_hash, hashmod=SHA256, num_keys=1)
         self.mtp.set_transfer_key(finaltk)
     
