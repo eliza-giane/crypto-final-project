@@ -56,8 +56,11 @@ class SiFT_MTP:
 		self.transfer_key = None
 
 	def set_transfer_key(self, key):
+		print('\ntransfer key was:', self.transfer_key)
 		print("\nI SET IT HEREEEEE", key)
 		self.transfer_key = key #random generated (in login)
+		print("\nself transfer key is: ", self.transfer_key)
+		
 
 	# parses a message header and returns a dictionary containing the header fields
 	def parse_msg_header(self, msg_hdr):
@@ -118,6 +121,7 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error('Old sequence number')
 
 		if parsed_msg_hdr['typ'] == self.type_login_res: 
+			print("\nRECEIVING A RESPONSE")
 			try:
 				#GETS MESSAGE BODY
 				msg_body = self.receive_bytes(msg_len - self.size_msg_hdr - self.size_mac - self.size_etk)
@@ -161,6 +165,7 @@ class SiFT_MTP:
 			# DEBUG  
 			
 		else:
+			print("\nRECEIVING ELSE")
 			try:
 				#GETS MESSAGE BODY
 				msg_body = self.receive_bytes(msg_len - self.size_msg_hdr - self.size_mac)
@@ -181,11 +186,14 @@ class SiFT_MTP:
 				print('MAC (' + str(len(msg_mac)) + '): ' + msg_mac.hex())
 				print('------------------------------------------')
 			# DEBUG #
-			
+
+		# self.set_transfer_key(RSAcipher.decrypt(msg_etk)) 
+		# print("\nNEW EDIT TRANSFER KEY: ", self.transfer_key)
 		msg_hdr_sqn = (self.rcv_sqn).to_bytes(self.size_msg_hdr_sqn, byteorder='big')
 		msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
 		nonce = msg_hdr_sqn + msg_hdr_rnd    # parsed_msg_hdr['sqn'] +  parsed_msg_hdr['rnd']
 		print("Transfer key: ", self.transfer_key)
+		print("Message type: ", parsed_msg_hdr['typ'])
 		cipher = AES.new(self.transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=self.size_mac)
 		cipher.update(msg_hdr)
 		
@@ -213,6 +221,7 @@ class SiFT_MTP:
 		self.set_transfer_key(Random.get_random_bytes(32)) #generates fresh 32 byte random temporary key
 		
 		if msg_type == self.type_login_req: # includes etk portion
+			print("\nSENDING A REQUEST")
 
 			if not self.transfer_key:
 				raise SiFT_MTP_Error("Transfer key has not been established")
@@ -262,6 +271,7 @@ class SiFT_MTP:
 				raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 		
 		else: # does not include etk portion
+			print("\nSENDING ELSE")
 			if not self.transfer_key:
 				raise SiFT_MTP_Error("Transfer key has not been established")
 
