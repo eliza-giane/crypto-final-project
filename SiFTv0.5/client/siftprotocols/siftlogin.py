@@ -2,7 +2,7 @@
 
 import time
 from Crypto.Hash import SHA256
-from Crypto.Protocol.KDF import PBKDF2
+from Crypto.Protocol.KDF import PBKDF2, HKDF
 from siftprotocols.siftmtp import SiFT_MTP, SiFT_MTP_Error
 from Crypto import Random
 
@@ -22,9 +22,6 @@ class SiFT_LOGIN:
         # --------- STATE ------------
         self.mtp = mtp
         self.server_users = None 
-
-        self.server_random = None
-
 
     # sets user passwords dictionary (to be used by the server)
     def set_server_users(self, users):
@@ -166,11 +163,6 @@ class SiFT_LOGIN:
         login_req_struct['client_random'] = Random.get_random_bytes(16).hex()
         msg_payload = self.build_login_req(login_req_struct)
 
-        ## TODO ##
-        # encrypt the payload in AES GCM using a temporary key (16 bytes) (append it to the header)
-        # append the MAC
-        # append the encrypted temporary key (encrypt with RSA 0AEP using the server's public key)
-
         # DEBUG 
         if self.DEBUG:
             print('Outgoing payload (' + str(len(msg_payload)) + '):')
@@ -212,6 +204,9 @@ class SiFT_LOGIN:
         if login_res_struct['request_hash'] != request_hash:
             raise SiFT_LOGIN_Error('Verification of login response failed')
         
-        ## TODO ##
-        # compute transfer key
+        ## TODO ## computing the final transfer key to be passed onto MTP
+        initKey = login_req_struct['client_random'] + login_req_struct['server_random']
+        finaltk = HKDF(initKey, key_len=32, salt=request_hash, hash_fn=SHA256)
+
+    
 

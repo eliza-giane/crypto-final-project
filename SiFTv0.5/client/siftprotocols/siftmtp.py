@@ -95,6 +95,8 @@ class SiFT_MTP:
 	# receives and parses message, returns msg_type and msg_payload
 	def receive_msg(self):
 		print("\nRECEIVING MESSAGE")
+
+		self.rcv_sqn += 1
 		try:
 			# GETS UNPARSED MESSAGE HEADER
 			msg_hdr = self.receive_bytes(self.size_msg_hdr)
@@ -120,8 +122,9 @@ class SiFT_MTP:
 		if msg_sqn < self.rcv_sqn:
 			raise SiFT_MTP_Error('Old sequence number')
 
-		if parsed_msg_hdr['typ'] == self.type_login_res: 
+		if parsed_msg_hdr['typ'] == self.type_login_req: 
 			print("\nRECEIVING A RESPONSE")
+
 			try:
 				#GETS MESSAGE BODY
 				msg_body = self.receive_bytes(msg_len - self.size_msg_hdr - self.size_mac - self.size_etk)
@@ -161,7 +164,6 @@ class SiFT_MTP:
 			except ValueError:
 				print('Error: Cannot import private key from file ' + pivkeyfile)
 				sys.exit(1)
-
 
 			RSAcipher = PKCS1_OAEP.new(pivkey)
 			self.set_transfer_key(RSAcipher.decrypt(msg_etk)) 
@@ -214,8 +216,6 @@ class SiFT_MTP:
 			payload = cipher.decrypt_and_verify(msg_body, msg_mac)
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Error: Operation Failed!')
-	
-		self.rcv_sqn += 1
 
 		return parsed_msg_hdr['typ'], payload
 
@@ -230,6 +230,7 @@ class SiFT_MTP:
 	def send_msg(self, msg_type, msg_payload):
 		print("\nSENDING MESSAGE")
 
+		self.snd_sqn += 1 
 		self.set_transfer_key(Random.get_random_bytes(32)) #generates fresh 32 byte random temporary key
 		
 		if msg_type == self.type_login_req: # includes etk portion
@@ -314,6 +315,3 @@ class SiFT_MTP:
 				self.send_bytes(msg_hdr + msg_epd + msg_mac)
 			except SiFT_MTP_Error as e:
 				raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
-			
-		# if message was sent successfully:
-		self.snd_sqn += 1 
