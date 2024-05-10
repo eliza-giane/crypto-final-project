@@ -23,6 +23,7 @@ class SiFT_MTP:
 		self.version_major = 1
 		self.version_minor = 0
 		self.msg_hdr_ver = b'\x01\x00'
+		self.msg_hdr_rsv = b'\x00\x00'
 
 		self.size_msg_hdr = 16
 		self.size_msg_hdr_ver = 2
@@ -55,6 +56,7 @@ class SiFT_MTP:
 		self.transfer_key = None
 
 	def set_transfer_key(self, key):
+		print("\nI SET IT HEREEEEE", key)
 		self.transfer_key = key #random generated (in login)
 
 	# parses a message header and returns a dictionary containing the header fields
@@ -89,7 +91,7 @@ class SiFT_MTP:
 
 	# receives and parses message, returns msg_type and msg_payload
 	def receive_msg(self):
-		
+		print("\nRECEIVING MESSAGE")
 		try:
 			# GETS UNPARSED MESSAGE HEADER
 			msg_hdr = self.receive_bytes(self.size_msg_hdr)
@@ -128,15 +130,6 @@ class SiFT_MTP:
 			except SiFT_MTP_Error as e:
 				raise SiFT_MTP_Error('Unable to receive message MAC --> ' + e.err_msg)
 
-			# DEBUG 
-			if self.DEBUG:
-				print('MTP message received (' + str(msg_len) + '):')
-				print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-				print('BDY (' + str(len(msg_body)) + '): ')
-				print(msg_body.hex())
-				print('------------------------------------------')
-			# DEBUG  
-
 			if len(msg_body) != msg_len - self.size_msg_hdr - self.size_mac - self.size_etk: 
 				raise SiFT_MTP_Error('Incomplete message body received')
 			
@@ -156,6 +149,16 @@ class SiFT_MTP:
 				sys.exit(1)
 			RSAcipher = PKCS1_OAEP.new(pubkey)
 			self.set_transfer_key(RSAcipher.decrypt(msg_etk)) 
+
+			# DEBUG 
+			if self.DEBUG:
+				print('MTP message received (' + str(msg_len) + '):')
+				print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
+				print('BDY (' + str(len(msg_body)) + '): ' + msg_body.hex())
+				print('MAC (' + str(len(msg_mac)) + '): ' + msg_mac.hex())
+				print('ETK (' + str(len(msg_etk)) + '): ' + msg_etk.hex())
+				print('------------------------------------------')
+			# DEBUG  
 			
 		else:
 			try:
@@ -174,14 +177,15 @@ class SiFT_MTP:
 			if self.DEBUG:
 				print('MTP message received (' + str(msg_len) + '):')
 				print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-				print('BDY (' + str(len(msg_body)) + '): ')
-				print(msg_body.hex())
+				print('BDY (' + str(len(msg_body)) + '): ' + msg_body.hex())
+				print('MAC (' + str(len(msg_mac)) + '): ' + msg_mac.hex())
 				print('------------------------------------------')
 			# DEBUG #
 			
 		msg_hdr_sqn = (self.rcv_sqn).to_bytes(self.size_msg_hdr_sqn, byteorder='big')
-		msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd, byteodrer='big')
+		msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
 		nonce = msg_hdr_sqn + msg_hdr_rnd    # parsed_msg_hdr['sqn'] +  parsed_msg_hdr['rnd']
+		print("Transfer key: ", self.transfer_key)
 		cipher = AES.new(self.transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=self.size_mac)
 		cipher.update(msg_hdr)
 		
@@ -204,6 +208,7 @@ class SiFT_MTP:
 
 	# builds and sends message of a given type using the provided payload
 	def send_msg(self, msg_type, msg_payload):
+		print("\nSENDING MESSAGE")
 
 		self.set_transfer_key(Random.get_random_bytes(32)) #generates fresh 32 byte random temporary key
 		
@@ -219,7 +224,7 @@ class SiFT_MTP:
 			### us:
 			msg_hdr_sqn = (self.snd_sqn).to_bytes(self.size_msg_hdr_sqn, byteorder='big') #increments the sequence
 			msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
-			msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_hdr_sqn + msg_hdr_rnd
+			msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_hdr_sqn + msg_hdr_rnd + self.msg_hdr_rsv
 			nonce = msg_hdr_sqn + msg_hdr_rnd
 			cipher = AES.new(self.transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=self.size_mac)
 			cipher.update(msg_hdr)
@@ -227,7 +232,7 @@ class SiFT_MTP:
 
 			pubkey = ''
 			pubkeyfile = './pubkey'
-
+			
 			with open(pubkeyfile, 'rb') as f:
 				pubkeystr = f.read()
 			try:
@@ -245,7 +250,7 @@ class SiFT_MTP:
 				print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
 				print('EPD (' + str(len(msg_epd)) + '): ' + msg_epd.hex())
 				print('MAC (' + str(len(msg_mac)) + '): ' + msg_mac.hex())
-				# print('BDY (' + str(len(msg_payload)) + '): ')
+				print('ETK (' + str(len(msg_etk)) + '): ' + msg_etk.hex())
 				# print(msg_payload.hex())
 				print('------------------------------------------')
 			# DEBUG 
@@ -267,7 +272,7 @@ class SiFT_MTP:
 			### us:
 			msg_hdr_sqn = (self.snd_sqn).to_bytes(self.size_msg_hdr_sqn, byteorder='big') #increments the sequence
 			msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
-			msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_hdr_sqn + msg_hdr_rnd
+			msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_hdr_sqn + msg_hdr_rnd + self.msg_hdr_rsv
 			nonce = msg_hdr_sqn + msg_hdr_rnd
 			cipher = AES.new(self.transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=self.size_mac)
 			cipher.update(msg_hdr)
@@ -279,8 +284,6 @@ class SiFT_MTP:
 				print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
 				print('EPD (' + str(len(msg_epd)) + '): ' + msg_epd.hex())
 				print('MAC (' + str(len(msg_mac)) + '): ' + msg_mac.hex())
-				# print('BDY (' + str(len(msg_payload)) + '): ')
-				# print(msg_payload.hex())
 				print('------------------------------------------')
 			# DEBUG 
 
