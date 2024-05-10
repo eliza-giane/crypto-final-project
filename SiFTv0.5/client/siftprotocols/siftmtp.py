@@ -53,14 +53,13 @@ class SiFT_MTP:
 		self.peer_socket = peer_socket 
 		self.snd_sqn = 0
 		self.rcv_sqn = 0
+		print("resets transfer key to None")
 		self.transfer_key = None
 
 	def set_transfer_key(self, key):
-		print('\ntransfer key was:', self.transfer_key)
-		print("\nI SET IT HEREEEEE", key)
+		print('set transfer key FROM: ', self.transfer_key)
+		print('set transfer key to: ', key)
 		self.transfer_key = key #random generated (in login)
-		print("\nself transfer key is: ", self.transfer_key)
-		
 
 	# parses a message header and returns a dictionary containing the header fields
 	def parse_msg_header(self, msg_hdr):
@@ -122,7 +121,7 @@ class SiFT_MTP:
 		if msg_sqn < self.rcv_sqn:
 			raise SiFT_MTP_Error('Old sequence number')
 
-		if parsed_msg_hdr['typ'] == self.type_login_req: 
+		if parsed_msg_hdr['typ'] == self.type_command_req: 
 			print("\nRECEIVING A RESPONSE")
 
 			try:
@@ -179,7 +178,7 @@ class SiFT_MTP:
 			# DEBUG  
 			
 		else:
-			print("\nRECEIVING ELSE")
+			print("\nRECEIVING ELSE (receive)")
 			try:
 				#GETS MESSAGE BODY
 				msg_body = self.receive_bytes(msg_len - self.size_msg_hdr - self.size_mac)
@@ -231,11 +230,11 @@ class SiFT_MTP:
 		print("\nSENDING MESSAGE")
 
 		self.snd_sqn += 1 
-		self.set_transfer_key(Random.get_random_bytes(32)) #generates fresh 32 byte random temporary key
 		
 		if msg_type == self.type_login_req: # includes etk portion
 			print("\nSENDING A REQUEST")
-
+			
+			self.set_transfer_key(Random.get_random_bytes(32)) #generates fresh 32 byte random temporary key
 			if not self.transfer_key:
 				raise SiFT_MTP_Error("Transfer key has not been established")
 

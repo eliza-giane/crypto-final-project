@@ -2,7 +2,7 @@
 
 import time
 from Crypto.Hash import SHA256
-from Crypto.Protocol.KDF import PBKDF2
+from Crypto.Protocol.KDF import PBKDF2, HKDF
 from siftprotocols.siftmtp import SiFT_MTP, SiFT_MTP_Error
 from Crypto import Random
 
@@ -23,9 +23,6 @@ class SiFT_LOGIN:
         self.mtp = mtp
         self.server_users = None 
 
-        self.server_random = None
-
-
     # sets user passwords dictionary (to be used by the server)
     def set_server_users(self, users):
         self.server_users = users
@@ -37,7 +34,7 @@ class SiFT_LOGIN:
         login_req_str = str(login_req_struct['timestamp'])
         login_req_str += self.delimiter + login_req_struct['username']
         login_req_str += self.delimiter + login_req_struct['password'] 
-        login_req_str += self.delimiter + login_req_struct['client_random']
+        login_req_str += self.delimiter + login_req_struct['client_random'].hex()
         
         return login_req_str.encode(self.coding)
 
@@ -74,7 +71,7 @@ class SiFT_LOGIN:
         login_res_fields = login_res.decode(self.coding).split(self.delimiter)
         login_res_struct = {}
         login_res_struct['request_hash'] = bytes.fromhex(login_res_fields[0])
-        login_res_struct['server_random'] = Random.get_random_bytes(16)
+        login_res_struct['server_random'] = bytes.fromhex(login_res_fields[1])
 
         return login_res_struct
 
@@ -86,10 +83,12 @@ class SiFT_LOGIN:
         if pwdhash == usr_struct['pwdhash']: return True
         return False
 
-
+    #should generate server random here
     # handles login process (to be used by the server)
     ### these two functions below have to be extended
     def handle_login_server(self):
+
+        print("Handle_Login_Server")
 
         if not self.server_users:
             raise SiFT_LOGIN_Error('User database is required for handling login at server')
@@ -132,6 +131,7 @@ class SiFT_LOGIN:
         # building login response
         login_res_struct = {}
         login_res_struct['request_hash'] = request_hash
+        login_res_struct['server_random'] = Random.get_random_bytes(16)
         msg_payload = self.build_login_res(login_res_struct)
 
         # DEBUG 
@@ -152,24 +152,26 @@ class SiFT_LOGIN:
             print('User ' + login_req_struct['username'] + ' logged in')
         # DEBUG 
 
+        ## TODO ## computing the final transfer key to be passed onto MTP
+        initKey = login_req_struct['client_random'] + login_res_struct['server_random']
+        finaltk = HKDF(initKey, key_len=32, salt=request_hash, hash_fn=SHA256, num_keys=1)
+        self.mtp.set_transfer_key(finaltk)
+
         return login_req_struct['username']
 
 
     # handles login process (to be used by the client)
     def handle_login_client(self, username, password):
 
+        print("Handle_Login_Client")
+
         # building a login request
         login_req_struct = {}
         login_req_struct['timestamp'] = time.time_ns()
         login_req_struct['username'] = username
         login_req_struct['password'] = password
-        login_req_struct['client_random'] = Random.get_random_bytes(16).hex()
+        login_req_struct['client_random'] = Random.get_random_bytes(16)
         msg_payload = self.build_login_req(login_req_struct)
-
-        ## TODO ##
-        # encrypt the payload in AES GCM using a temporary key (16 bytes) (append it to the header)
-        # append the MAC
-        # append the encrypted temporary key (encrypt with RSA 0AEP using the server's public key)
 
         # DEBUG 
         if self.DEBUG:
@@ -212,6 +214,8 @@ class SiFT_LOGIN:
         if login_res_struct['request_hash'] != request_hash:
             raise SiFT_LOGIN_Error('Verification of login response failed')
         
-        ## TODO ##
-        # compute transfer key
-
+        ## TODO ## computing the final transfer key to be passed onto MTP
+        initKey = login_req_struct['client_random'] + login_res_struct['server_random']
+        finaltk = HKDF(initKey, key_len=32, salt=request_hash, hash_fn=SHA256, num_keys=1)
+        self.mtp.set_transfer_key(finaltk)
+    
