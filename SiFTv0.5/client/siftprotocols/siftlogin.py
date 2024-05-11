@@ -87,9 +87,6 @@ class SiFT_LOGIN:
     # handles login process (to be used by the server)
     ### these two functions below have to be extended
     def handle_login_server(self):
-
-        print("Handle_Login_Server")
-
         if not self.server_users:
             raise SiFT_LOGIN_Error('User database is required for handling login at server')
 
@@ -162,9 +159,6 @@ class SiFT_LOGIN:
 
     # handles login process (to be used by the client)
     def handle_login_client(self, username, password):
-
-        print("Handle_Login_Client")
-
         # building a login request
         login_req_struct = {}
         login_req_struct['timestamp'] = time.time_ns()

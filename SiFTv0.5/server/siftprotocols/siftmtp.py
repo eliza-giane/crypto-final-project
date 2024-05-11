@@ -53,12 +53,9 @@ class SiFT_MTP:
 		self.peer_socket = peer_socket 
 		self.snd_sqn = 0
 		self.rcv_sqn = 0
-		print("resets transfer key to None")
 		self.transfer_key = None
 
 	def set_transfer_key(self, key):
-		print('set transfer key FROM: ', self.transfer_key)
-		print('set transfer key to: ', key)
 		self.transfer_key = key #random generated (in login)
 
 	# parses a message header and returns a dictionary containing the header fields
@@ -93,9 +90,8 @@ class SiFT_MTP:
 
 	# receives and parses message, returns msg_type and msg_payload
 	def receive_msg(self):
-		print("\nRECEIVING MESSAGE")
-
 		self.rcv_sqn += 1
+
 		try:
 			# GETS UNPARSED MESSAGE HEADER
 			msg_hdr = self.receive_bytes(self.size_msg_hdr)
@@ -122,7 +118,6 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error('Old sequence number')
 
 		if parsed_msg_hdr['typ'] == self.type_login_req: 
-			print("\nRECEIVING A RESPONSE")
 
 			try:
 				#GETS MESSAGE BODY
@@ -178,7 +173,6 @@ class SiFT_MTP:
 			# DEBUG  
 			
 		else:
-			print("\nRECEIVING ELSE (receive)")
 			try:
 				#GETS MESSAGE BODY
 				msg_body = self.receive_bytes(msg_len - self.size_msg_hdr - self.size_mac)
@@ -200,14 +194,9 @@ class SiFT_MTP:
 				print('------------------------------------------')
 			# DEBUG #
 
-		# self.set_transfer_key(RSAcipher.decrypt(msg_etk)) 
-		# print("\nNEW EDIT TRANSFER KEY: ", self.transfer_key)
 		msg_hdr_sqn = (self.rcv_sqn).to_bytes(self.size_msg_hdr_sqn, byteorder='big')
 		msg_hdr_rnd = parsed_msg_hdr['rnd']
 		nonce = msg_hdr_sqn + msg_hdr_rnd    # parsed_msg_hdr['sqn'] +  parsed_msg_hdr['rnd']
-		print("Transfer key: ", self.transfer_key)
-		print("Message type: ", parsed_msg_hdr['typ'])
-		print("NONCE:", nonce)
 		cipher = AES.new(self.transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=self.size_mac)
 		cipher.update(msg_hdr)
 		
@@ -228,12 +217,10 @@ class SiFT_MTP:
 
 	# builds and sends message of a given type using the provided payload
 	def send_msg(self, msg_type, msg_payload):
-		print("\nSENDING MESSAGE")
 
 		self.snd_sqn += 1 
 		
 		if msg_type == self.type_login_req: # includes etk portion
-			print("\nSENDING A REQUEST")
 			
 			self.set_transfer_key(Random.get_random_bytes(32)) #generates fresh 32 byte random temporary key
 			if not self.transfer_key:
@@ -248,7 +235,6 @@ class SiFT_MTP:
 			msg_hdr_rnd = Random.get_random_bytes(self.size_msg_hdr_rnd)
 			msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_hdr_sqn + msg_hdr_rnd + self.msg_hdr_rsv
 			nonce = msg_hdr_sqn + msg_hdr_rnd
-			print("NONCE:", nonce)
 			cipher = AES.new(self.transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=self.size_mac)
 			cipher.update(msg_hdr)
 			msg_epd, msg_mac = cipher.encrypt_and_digest(msg_payload)
@@ -285,7 +271,6 @@ class SiFT_MTP:
 				raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 		
 		else: # does not include etk portion
-			print("\nSENDING ELSE")
 			if not self.transfer_key:
 				raise SiFT_MTP_Error("Transfer key has not been established")
 
